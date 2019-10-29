@@ -4,6 +4,8 @@ Exercise to compare massive crawling using GCP cloud functions vs GCP Kubernetes
 
 ## nodejs
 
+A first prototype for the others solution, based on NodeJS + express
+
 Bootstrap: `cd nodejs && npm i`
 
 Run the application, dev: `npm run dev`
