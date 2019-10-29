@@ -1,0 +1,72 @@
+{
+	"info": {
+		"_postman_id": "1dc5bf07-f603-41e3-a42a-ef234d0a4e17",
+		"name": "bulk-crawling",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{ROOT_URL}}/health",
+					"host": [
+						"{{ROOT_URL}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "imports",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "https://www.groupebpce.fr/mobile_fr/Journaliste/Actus-et-Communiques-de-Presse/Mecenat-et-sponsoring/Championnat-du-monde-de-handball-masculin-2019-la-Caisse-d-Epargne-premier-supporter-de-l-equipe-de-France\nhttps://www.etincelle.fr/\nhttps://www.lembarque.com/voiture-connectee-elektrobit-se-positionne-sur-le-marche-des-mises-a-jour-logicielles-a-distance-securisees_007769\nhttps://www.creditmutuel.com/fr/actualites/stress-tests-bancaires\nhttps://www.kickstarter.com/projects/rocketpiggames/tilescape-gothic-city-3d-printable-modular-buildin/description\nhttp://www.joel-technic-auto.com/content3/backpacks_school_cat_Cowboy_3D_printing_Polyester_bag_backpack_student_UPdOqW7a-bdgm/\nhttps://www.dalim.com/fr/presse-actualite/espace-presse/\nhttps://www.theeliteevents.com/new-york/news/explore-private-aircraft-ownership-with-columbia-aircraft-sales/\nhttps://www.intelligenceonline.fr/tags/bae-systems\nhttp://blackprintbooster.de/author/jvh/\nhttp://europa.eu/rapid/press-release_IP-19-2016_en.htm\nhttps://watersource.awa.asn.au/tag/internet-of-things/\nhttp://www.remourban.eu/news--events/news/\nhttps://www.dw.com/en/chinas-xi-pushes-new-silk-road-in-france/a-48055637é"
+				},
+				"url": {
+					"raw": "{{ROOT_URL}}/imports",
+					"host": [
+						"{{ROOT_URL}}"
+					],
+					"path": [
+						"imports"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "job/:id",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{ROOT_URL}}/job/0cac7568-0b9c-477b-b02a-c20579b30b8e",
+					"host": [
+						"{{ROOT_URL}}"
+					],
+					"path": [
+						"job",
+						"0cac7568-0b9c-477b-b02a-c20579b30b8e"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"protocolProfileBehavior": {}
+}
