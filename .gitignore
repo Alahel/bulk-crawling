@@ -1,3 +1,11 @@
+# IDE
+*.iml
+.idea
+
+# misc
+nodejs/crawlingresult
+nodejs/node_modules
+
 # Logs
 logs
 *.log

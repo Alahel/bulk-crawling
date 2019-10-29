@@ -1,0 +1,55 @@
+{
+  "name": "bulk-crawling",
+  "version": "1.0.0",
+  "description": "Exercise to compare GCP cloud functions vs Kubernetes crawling",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "prettify": "prettier --write \"**/*.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alahel/bulk-crawling.git"
+  },
+  "keywords": [
+    "gcp",
+    "cloud",
+    "function",
+    "kubernetes",
+    "crawling"
+  ],
+  "author": "Alahel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Alahel/bulk-crawling/issues"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": true
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "crawlingresult/*/**"
+    ]
+  },
+  "homepage": "https://github.com/Alahel/bulk-crawling#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "crawler": "^1.2.1",
+    "express": "^4.17.1",
+    "http-errors": "^1.7.3",
+    "lodash": "^4.17.15",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4",
+    "url-slugify": "^1.0.6",
+    "uuidv4": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.4",
+    "prettier": "^1.18.2"
+  }
+}
