@@ -1,83 +1,74 @@
 const chunk = require('lodash/chunk')
+const { PubSub } = require('@google-cloud/pubsub')
 const uuid = require('uuidv4').default
-const path = require('path')
-const fs = require('fs').promises
 const URLSlugify = require('url-slugify')
 const Crawler = require('crawler')
 const { NotFound } = require('http-errors')
+const { topic, crawlSingleTimeout } = require('./config')
+const { serialize, deserialize, serializeDate } = require('./helpers')
 
 const IMPORT_STATUS_PENDING = 'pending'
 const IMPORT_STATUS_RUNNING = 'running'
 const IMPORT_STATUS_COMPLETED = 'completed'
 const MAX_FILE_NAME_LENGTH = 255
-const CRAWL_TIMEOUT = 10000
 
+const pubsub = new PubSub()
+const pubsubTopic = pubsub.topic(topic)
 const urlSlugify = new URLSlugify()
-const crawlingResultPath = path.resolve('./crawlingresult')
-
 const jobsStats = new Map()
 
-const crawler = new Crawler({
-  maxConnections: 300,
-  retries: 0,
-  timeout: CRAWL_TIMEOUT,
-  retryTimeout: 1000,
-  encoding: null,
-  callback: async (error, res, done) => {
-    const {
-      body,
-      options: {
-        batchPayload: { jobId },
-        batchResult: { filePath },
-      },
-    } = res
-    const jobStat = jobsStats.get(jobId)
-    if (error) {
-      jobStat.set('errors', (jobStat.get('errors') || 0) + 1)
-      return done(error)
-    }
-    await fs.writeFile(filePath, body)
-    jobStat.set('processed', (jobStat.get('processed') || 0) + 1)
-    jobStat.set('lastProcessedAt', new Date())
-    done()
-  },
-})
-crawler.on('schedule', ({ batchPayload: { jobId } }) => {
-  jobsStats.get(jobId).set('status', IMPORT_STATUS_RUNNING)
-})
-crawler.on('request', ({ batchPayload: { jobId } }) => {
-  const jobStat = jobsStats.get(jobId)
-  if (!jobStat.get('startedAt')) jobStat.set('startedAt', new Date())
-})
-
-const processBulkImport = async batchPayload => {
+const crawl = ({ event }) => {
+  const batchPayload = deserialize(event)
+  console.info(batchPayload)
   const {
     jobId,
-    batch: { urls: batchUrls },
+    batch: { urls },
   } = batchPayload
-  const scrapeProms = batchUrls.map(oneBatchUrl => {
+  const crawler = new Crawler({
+    maxConnections: 300,
+    retries: 0,
+    timeout: crawlSingleTimeout,
+    retryTimeout: 1000,
+    encoding: null,
+    callback: async (error, res, done) => {
+      const {
+        body,
+        options: {
+          batchPayload: { jobId },
+          batchResult: { fileName },
+        },
+      } = res
+      console.log('----crawl finished', fileName)
+      const jobStat = jobsStats.get(jobId)
+      if (error) {
+        // todo: handle errors
+        jobStat.set('errors', (jobStat.get('errors') || 0) + 1)
+        return done(error)
+      }
+      jobStat.set('processed', (jobStat.get('processed') || 0) + 1)
+      jobStat.set('lastProcessedAt', new Date())
+      done()
+    },
+  })
+  crawler.on('schedule', ({ batchPayload: { jobId } }) => {
+    jobsStats.get(jobId).set('status', IMPORT_STATUS_RUNNING)
+  })
+  crawler.on('request', ({ batchPayload: { jobId } }) => {
+    const jobStat = jobsStats.get(jobId)
+    if (!jobStat.get('startedAt')) jobStat.set('startedAt', new Date())
+  })
+  urls.forEach(url =>
     crawler.queue({
-      uri: oneBatchUrl,
+      uri: url,
       jQuery: false,
       retries: 0,
       batchResult: {
-        filePath: path.join(
-          crawlingResultPath,
-          jobId,
-          urlSlugify.slugify(oneBatchUrl).slice(0, MAX_FILE_NAME_LENGTH),
-        ),
+        fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
       },
       batchPayload,
-    })
-  })
-  try {
-    await Promise.all(scrapeProms)
-  } catch (e) {
-    console.warn(e)
-  }
+    }),
+  )
 }
-
-const serializeDate = date => (date instanceof Date ? date.toISOString() : null)
 
 const getJob = id => {
   const job = jobsStats.get(id)
@@ -117,15 +108,9 @@ const getJob = id => {
   }
 }
 
-const importBulk = async ({ urls, batchSize }) => {
-  try {
-    // begin by removing dir if exists
-    await fs.stat(crawlingResultPath)
-    await fs.rmdir(crawlingResultPath, { recursive: true })
-  } catch (e) {}
+const importBulk = async ({ urls, batchSize = 1 }) => {
   // process job
   const jobId = uuid()
-  await fs.mkdir(path.join(crawlingResultPath, jobId), { recursive: true })
   jobsStats.clear()
   jobsStats.set(
     jobId,
@@ -142,16 +127,17 @@ const importBulk = async ({ urls, batchSize }) => {
   const batchesUrls = batchSize ? chunk(urls, batchSize) : urls
   const batchesLength = batchesUrls.length
   const batchesProms = batchesUrls.map((batchUrls, batchIndex) =>
-    processBulkImport({
-      jobId,
-      batch: {
-        index: batchIndex,
-        total: batchesLength,
-        urls: batchUrls,
-      },
-    }),
+    pubsubTopic.publish(
+      serialize({
+        jobId,
+        batch: {
+          index: batchIndex,
+          total: batchesLength,
+          urls: batchUrls,
+        },
+      }),
+    ),
   )
-
   // Send async job for proper processing
   Promise.all(batchesProms)
   return getJob(jobId)
@@ -160,4 +146,5 @@ const importBulk = async ({ urls, batchSize }) => {
 module.exports = {
   getJob,
   importBulk,
+  crawl,
 }

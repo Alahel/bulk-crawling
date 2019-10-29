@@ -26,7 +26,7 @@ app.use(cors())
 app.get('/health', (req, res) => res.sendStatus(200))
 
 app.post(
-  '/import',
+  '/imports',
   handle(async (req, res) => {
     const params = sanitizeBulkImport(req)
     const job = await importBulk(params)
