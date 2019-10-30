@@ -47,4 +47,4 @@ Deploy: `gcloud functions deploy job --runtime nodejs10 --trigger-http --max-ins
 Background cloud function. Crawls one or several urls from a pubsub, then uploads the the result
 to a bucket.
 
-Deploy: `gcloud functions deploy crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 100`
+Deploy: `gcloud functions deploy crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000`

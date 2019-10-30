@@ -1,8 +1,8 @@
-const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
-const { port, maxFileSize } = require('./config')
+const express = require('express')
 const { getJob, importBulk } = require('./business')
+const { port, maxFileSize } = require('./config')
 const { sanitizeBulkImport } = require('./sanitize')
 
 const handle = prom => async (req, res, next) => {
@@ -35,10 +35,11 @@ app.post(
 )
 
 app.get(
-  '/job/:id',
-  handle(async ({ params: { id } }, res) => res.json(getJob(id))),
+  ['/job/:id', '/job'],
+  handle(async ({ params: { id }, query: { id: qId } }, res) => res.json(getJob(id || qId))),
 )
 
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => res.sendStatus(err ? 500 : 404))
 app.listen(port, () => {
   console.log(`Server listening on ${port}`)

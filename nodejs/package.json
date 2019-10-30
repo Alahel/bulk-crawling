@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "prettify": "prettier --write \"**/*.js\""
+    "dev": "nodemon index.js"
   },
   "repository": {
     "type": "git",
@@ -23,12 +22,6 @@
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Alahel/bulk-crawling/issues"
-  },
-  "prettier": {
-    "trailingComma": "all",
-    "tabWidth": 2,
-    "semi": false,
-    "singleQuote": true
   },
   "nodemonConfig": {
     "ignore": [
@@ -47,7 +40,6 @@
     "uuidv4": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^1.19.4",
-    "prettier": "^1.18.2"
+    "nodemon": "^1.19.4"
   }
 }

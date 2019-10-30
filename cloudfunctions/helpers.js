@@ -7,8 +7,7 @@ const handle = prom => async (req, res, next) => {
   }
 }
 
-const deserialize = ({ data }) =>
-  JSON.parse(Buffer.from(data, 'base64').toString())
+const deserialize = ({ data }) => JSON.parse(Buffer.from(data, 'base64').toString())
 
 const serialize = message => Buffer.from(JSON.stringify(message), 'utf8')
 

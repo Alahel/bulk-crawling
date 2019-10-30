@@ -1,0 +1,4 @@
+*.json
+postman
+doc
+node_modules

@@ -1,9 +1,9 @@
 const chunk = require('lodash/chunk')
-const uuid = require('uuidv4').default
-const path = require('path')
-const fs = require('fs').promises
-const URLSlugify = require('url-slugify')
 const Crawler = require('crawler')
+const fs = require('fs').promises
+const path = require('path')
+const URLSlugify = require('url-slugify')
+const uuid = require('uuidv4').default
 const { NotFound } = require('http-errors')
 
 const IMPORT_STATUS_PENDING = 'pending'
@@ -61,11 +61,7 @@ const processBulkImport = async batchPayload => {
       jQuery: false,
       retries: 0,
       batchResult: {
-        filePath: path.join(
-          crawlingResultPath,
-          jobId,
-          urlSlugify.slugify(oneBatchUrl).slice(0, MAX_FILE_NAME_LENGTH),
-        ),
+        filePath: path.join(crawlingResultPath, jobId, urlSlugify.slugify(oneBatchUrl).slice(0, MAX_FILE_NAME_LENGTH)),
       },
       batchPayload,
     })
@@ -122,6 +118,7 @@ const importBulk = async ({ urls, batchSize }) => {
     // begin by removing dir if exists
     await fs.stat(crawlingResultPath)
     await fs.rmdir(crawlingResultPath, { recursive: true })
+    // eslint-disable-next-line no-empty
   } catch (e) {}
   // process job
   const jobId = uuid()
