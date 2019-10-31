@@ -16,11 +16,15 @@ Run the application, prod: `npm start`
 
 Bootstrap: `gcloud pubsub topics create crawl_batches`
 
+Add a `config/firestore_sa.json` for the service account key in charge of Firestore access
+
 Starting the emulator for the pubsub: `gcloud beta emulators pubsub start`
+
 ```
 export PUBSUB_EMULATOR_HOST=localhost:8085
 export PUBSUB_PROJECT_ID=bulk-crawling
 ```
+
 ```
 python publisher.py bulk-crawling create crawl_batches
 python subscriber.py bulk-crawling create crawl_batches crawl_sub
@@ -40,11 +44,17 @@ Deploy: `gcloud functions deploy imports --runtime nodejs10 --trigger-http --max
 
 Get the status of the import job. Provide a `:id` GET parameter to retrieve metadata about this import.
 
-Deploy: `gcloud functions deploy job --runtime nodejs10 --trigger-http --max-instances 3`
+Deploy: `gcloud functions deploy job --runtime nodejs10 --trigger-http --max-instances 1`
 
 ### crawl
 
-Background cloud function. Crawls one or several urls from a pubsub, then uploads the the result
+Background cloud function. Crawls one or several urls from a pubsub, then uploads the result
 to a bucket.
 
 Deploy: `gcloud functions deploy crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000`
+
+### crawlResult
+
+Background cloud function. Register statistics about the crawling results in the Datastore.
+
+Deploy: `gcloud functions deploy crawlResult --runtime nodejs10 --trigger-topic crawl_batches_statuses --max-instances 1000`
