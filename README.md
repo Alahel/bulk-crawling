@@ -36,25 +36,30 @@ unset PUBSUB_EMULATOR_HOST
 ### imports
 
 Entry-point of import jobs, POST a body with all the required urls to crawl.
+
 Provide a `batchSize` GET parameter to fine-tune the number of urls sent to each cloud function.
 
-Deploy: `gcloud functions deploy imports --runtime nodejs10 --trigger-http --max-instances 1`
+Provide a `retries` GET parameter to fine-tune the number of retries per crawled sites
+
+Provide a `timeout` GET parameter to fine-tune the maximum timeout when crawling not responding sites
+
+Deploy: `gcloud functions deploy imports --runtime nodejs10 --trigger-http --max-instances 1 --memory 2048MB`
 
 ### job
 
 Get the status of the import job. Provide a `:id` GET parameter to retrieve metadata about this import.
 
-Deploy: `gcloud functions deploy job --runtime nodejs10 --trigger-http --max-instances 1`
+Deploy: `gcloud functions deploy job --runtime nodejs10 --trigger-http --max-instances 1 --memory 2048MB`
 
 ### crawl
 
 Background cloud function. Crawls one or several urls from a pubsub, then uploads the result
 to a bucket.
 
-Deploy: `gcloud functions deploy crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000`
+Deploy: `gcloud functions deploy crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000 --memory 2048MB`
 
 ### crawlResult
 
 Background cloud function. Register statistics about the crawling results in the Datastore.
 
-Deploy: `gcloud functions deploy crawlResult --runtime nodejs10 --trigger-topic crawl_batches_statuses --max-instances 1000`
+Deploy: `gcloud functions deploy crawlResult --runtime nodejs10 --trigger-topic crawl_batches_statuses --max-instances 1000 --memory 2048MB`

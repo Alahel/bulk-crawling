@@ -33,29 +33,24 @@ const getJob = async jobId => {
   if (!job) throw new NotFound(`job does not exists`)
   const { options, total, queuedAt } = job
   const parsedQueuedAt = queuedAt ? new Date(queuedAt) : undefined
-  // filter in-memory documents as Firestore does not provide a way to count
-  const { docs: items = [] } = await crawlResultsColl.where('jobId', '==', jobId).get()
-  const { processed, errors, startedAt, lastProcessedAt } = items.reduce(
-    (acc, item) => {
-      const { status, at } = item.data()
-      const parsedAt = new Date(at)
-      const { startedAt: prevStartedAt, lastProcessedAt: prevLastProcessedAt } = acc
-      if (status === IMPORT_STATUS_COMPLETED) acc.processed += 1
-      if (status === IMPORT_STATUS_ERROR) acc.errors += 1
-      if (!prevStartedAt) acc.startedAt = parsedAt
-      if (!prevLastProcessedAt) acc.lastProcessedAt = parsedAt
-      if (parsedAt < prevStartedAt) acc.startedAt = parsedAt
-      if (parsedAt > prevLastProcessedAt) acc.lastProcessedAt = parsedAt
-      return acc
-    },
-    {
-      total: 0,
-      processed: 0,
-      errors: 0,
-      startedAt: null,
-      lastProcessedAt: null,
-    },
-  )
+  // filter in-memory documents as Firestore does not provide a way to directly count
+  const baseQuery = crawlResultsColl.where('jobId', '==', jobId)
+  const [completedDocs, errorsDocs, startedAtDocs, lastProcessedAtDocs] = await Promise.all([
+    baseQuery.where('status', '==', IMPORT_STATUS_COMPLETED).get(),
+    baseQuery.where('status', '==', IMPORT_STATUS_ERROR).get(),
+    baseQuery
+      .orderBy('at', 'asc')
+      .limit(1)
+      .get(),
+    baseQuery
+      .orderBy('at', 'desc')
+      .limit(1)
+      .get(),
+  ])
+  const startedAt = startedAtDocs.docs[0].at
+  const lastProcessedAt = lastProcessedAtDocs.docs[0].at
+  const processed = completedDocs.size
+  const errors = errorsDocs.size
   let endedAt
   let duration = null
   let throughput = null
