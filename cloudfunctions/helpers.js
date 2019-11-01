@@ -1,4 +1,6 @@
-const handle = prom => async (req, res, next) => {
+const { BadRequest } = require('http-errors')
+
+const handleReq = prom => async (req, res, next) => {
   try {
     await prom(req, res, next)
   } catch (e) {
@@ -13,4 +15,8 @@ const serialize = message => Buffer.from(JSON.stringify(message), 'utf8')
 
 const serializeDate = date => (date instanceof Date ? date.toISOString() : null)
 
-module.exports = { handle, deserialize, serialize, serializeDate }
+const validateInt = ({ value, min = 0, max, message }) => {
+  if (!(!Number.isNaN(value) && value >= min && value <= max)) throw new BadRequest(message)
+}
+
+module.exports = { handleReq, deserialize, serialize, serializeDate, validateInt }

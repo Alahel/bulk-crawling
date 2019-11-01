@@ -1,27 +1,26 @@
 const chunk = require('lodash/chunk')
 const uuid = require('uuidv4').default
 const { BadRequest } = require('http-errors')
-const { getJobDoc, getJob } = require('./common')
-const { handle } = require('./helpers')
+const { batchesTopic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
+const { bigquery, jobsTableRef, getJob } = require('./common')
+const { handleReq, validateInt, serializeDate } = require('./helpers')
 const { PubSub } = require('@google-cloud/pubsub')
 const { serialize } = require('./helpers')
-const { topic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
 
 const pubsub = new PubSub()
-const pubsubTopic = pubsub.topic(topic)
+const pubsubTopic = pubsub.topic(batchesTopic)
 
 const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) => {
   const jobId = uuid()
-  const { jobRef } = await getJobDoc(jobId)
-  await jobRef.set({
+  await jobsTableRef.insert({
     jobId,
-    options: {
+    options: JSON.stringify({
       batchSize,
       retries,
       timeout,
-    },
+    }),
     total: urls.length,
-    queuedAt: new Date().toISOString(),
+    queuedAt: bigquery.datetime(serializeDate(new Date())),
   })
   const batchesUrls = batchSize ? chunk(urls, batchSize) : urls
   const batchesLength = batchesUrls.length
@@ -39,20 +38,16 @@ const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) 
       }),
     ),
   )
-  // Send async job for proper processing
+  // Send async job for proper processing in background
   Promise.all(batchesProms)
   return getJob(jobId)
-}
-
-const validateInt = ({ value, min = 0, max, message }) => {
-  if (!(!Number.isNaN(value) && value >= min && value <= max)) throw new BadRequest(message)
 }
 
 const sanitizeBulkImport = ({ query: { batchSize, retries, timeout }, body }) => {
   let finalBatchSize
   let finalRetries
   let finalTimeout
-  const finalUrls = typeof body === 'string' ? body.split('\n') : undefined
+  const finalUrls = typeof body === 'string' ? body.split('\n').filter(url => url) : undefined
   if (!(finalUrls instanceof Array && finalUrls.length > 0)) throw new BadRequest(`body is invalid`)
   if (batchSize) {
     finalBatchSize = +batchSize
@@ -74,7 +69,7 @@ const sanitizeBulkImport = ({ query: { batchSize, retries, timeout }, body }) =>
   }
 }
 
-exports.imports = handle(async (req, res) => {
+exports.imports = handleReq(async (req, res) => {
   const params = sanitizeBulkImport(req)
   const job = await importBulk(params)
   res.status(201).json(job)

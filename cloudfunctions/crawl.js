@@ -1,8 +1,8 @@
 const Crawler = require('crawler')
 const URLSlugify = require('url-slugify')
+const { batchesResultsTopic, bucketName } = require('./config/config')
 const { IMPORT_STATUS_COMPLETED, IMPORT_STATUS_ERROR } = require('./constants')
 const { PubSub } = require('@google-cloud/pubsub')
-const { resultsTopic, bucketName } = require('./config/config')
 const { serialize, deserialize } = require('./helpers')
 const { Storage } = require('@google-cloud/storage')
 
@@ -12,13 +12,13 @@ const CRAWL_OPTIONS = {
   retries: 0,
   retryTimeout: 1000,
   maxConnections: 300,
-  timeout: 5000,
+  timeout: 3000,
   encoding: null,
 }
 
 const pubsub = new PubSub()
 const gcs = new Storage()
-const pubsubResultsTopic = pubsub.topic(resultsTopic)
+const pubsubResultsTopic = pubsub.topic(batchesResultsTopic)
 const urlSlugify = new URLSlugify()
 
 const uploadDocument = async ({ fileName, jobId, document }) => {
@@ -39,6 +39,7 @@ const crawl = ({ event }) =>
     const {
       batch: { urls, retries, timeout },
     } = batchPayload
+    // Crawl in parallel for each url of the batches
     const crawler = new Crawler({
       ...CRAWL_OPTIONS,
       retries,
@@ -65,16 +66,15 @@ const crawl = ({ event }) =>
             }),
           )
           return done(error)
-        } else {
-          await uploadDocument({ fileName, jobId, document: body })
-          await pubsubResultsTopic.publish(
-            serialize({
-              ...messPayload,
-              status: IMPORT_STATUS_COMPLETED,
-              at: new Date(),
-            }),
-          )
         }
+        await uploadDocument({ fileName, jobId, document: body })
+        await pubsubResultsTopic.publish(
+          serialize({
+            ...messPayload,
+            status: IMPORT_STATUS_COMPLETED,
+            at: new Date(),
+          }),
+        )
         done()
       },
     })
