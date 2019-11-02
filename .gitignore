@@ -2,9 +2,13 @@
 *.iml
 .idea
 
+# cf
 cloudfunctions/config/*.json
 
-# misc
+# kubernetest
+kubernetes/config/*.json
+
+# nodejs
 nodejs/crawlingresult
 nodejs/node_modules
 

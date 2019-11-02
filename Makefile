@@ -1,3 +1,4 @@
+# --------- cloudfunctions
 # CF_ARGS='--memory 2048mb' for better performance on cloudfunctions
 export CF_ARGS?=--memory 256mb
 
@@ -5,7 +6,6 @@ define cfDeploy
 	cd cloudfunctions && gcloud functions deploy $(1)
 endef
 
-# --------- cloudfunctions
 .PHONY: cf-deploy-imports
 cf-deploy-imports:
 	$(call cfDeploy,imports --runtime nodejs10 --trigger-http --max-instances 1 $$CF_ARGS)
@@ -43,3 +43,11 @@ nodejs:
 	cd nodejs && npm start
 
 # --------- kubernetes
+export KB_ROOT_CMD=cd kubernetes
+
+.PHONY: kb-up
+kb-up:
+	$$KB_ROOT_CMD && docker-compose up --build
+
+kb-down:
+	$$KB_ROOT_CMD && docker-compose down --remove-orphans

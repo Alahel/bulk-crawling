@@ -14,7 +14,13 @@ Run the application, prod: `make nodejs`
 
 ## cloudfunctions
 
-Bootstrap: `gcloud pubsub topics create crawl_batches`
+The first real implementation using GCP Cloud Functions
+
+Bootstrap PubSub: `gcloud pubsub topics create crawl_batches`
+
+Bootstrap PubSub results: `gcloud pubsub topics create crawl_batches_statuses`
+
+Bootstrap bucket: `gsutil mb gs://crawl-jobs-results/`
 
 Add a `config/sa.json` for the service account key in charge of IAM accesses (PubSub, BigQuery, CloudFunctions, Bucket)
 
@@ -57,3 +63,17 @@ Background cloud function. Register statistics about the crawling results in the
 
 Deploy for dev/tests: `make cf-deploy-crawlResults`
 Deploy for speed: `CF_ARGS='--memory 2048MB' cf-deploy-crawlResults`
+
+## kubernetes
+
+Create the cluster: `gcloud container clusters create bulk-crawling-kb`
+
+Bootstrap PubSub: `gcloud pubsub topics create crawl_batches`
+
+Bootstrap PubSub results: `gcloud pubsub topics create crawl_batches_statuses`
+
+Bootstrap bucket: `gsutil mb gs://crawl-jobs-results-kb/`
+
+Get info about the cluster: `gcloud container clusters get-credentials bulk-crawling-kb`
+
+

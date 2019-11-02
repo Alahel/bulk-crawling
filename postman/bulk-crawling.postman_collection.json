@@ -44,7 +44,7 @@
 			"response": []
 		},
 		{
-			"name": "job/:id",
+			"name": "job?id",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -55,13 +55,18 @@
 					}
 				],
 				"url": {
-					"raw": "{{ROOT_URL}}/job/0cac7568-0b9c-477b-b02a-c20579b30b8e",
+					"raw": "{{ROOT_URL}}/job?id=06fe80fe-84cf-4d6e-bfc8-56087b61d7b0",
 					"host": [
 						"{{ROOT_URL}}"
 					],
 					"path": [
-						"job",
-						"0cac7568-0b9c-477b-b02a-c20579b30b8e"
+						"job"
+					],
+					"query": [
+						{
+							"key": "id",
+							"value": "06fe80fe-84cf-4d6e-bfc8-56087b61d7b0"
+						}
 					]
 				}
 			},
