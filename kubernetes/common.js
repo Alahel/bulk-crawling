@@ -1,3 +1,4 @@
+const express = require('express')
 const path = require('path')
 const {
   IMPORT_STATUS_RUNNING,
@@ -7,13 +8,16 @@ const {
 } = require('./constants')
 const { BigQuery } = require('@google-cloud/bigquery')
 const { NotFound } = require('http-errors')
-const { projectId, bqDatasetName } = require('./config/config')
+const { port, projectId, bqDatasetName } = require('./config/config')
+const { PubSub } = require('@google-cloud/pubsub')
 const { serializeDate } = require('./helpers')
 
-const bigquery = new BigQuery({
+const serviceAccountOpts = {
   projectId,
   keyFilename: path.join('.', 'config', 'sa.json'),
-})
+}
+const pubsub = new PubSub(serviceAccountOpts)
+const bigquery = new BigQuery(serviceAccountOpts)
 const dataset = bigquery.dataset(bqDatasetName)
 const datasetRoot = `${projectId}.${bqDatasetName}`
 const jobsTable = 'jobs'
@@ -113,7 +117,42 @@ const getJob = async jobId => {
   }
 }
 
+const bootstrapSubscription = async ({ topicName, subscriptionName } = {}) => {
+  const topic = pubsub.topic(topicName)
+  console.log(`checking subscriptions for ${topic.name}...`)
+  const [subscriptions] = await topic.getSubscriptions()
+  const needCreate = !subscriptions.some(subscription => subscription.name === subscription.name)
+  if (needCreate) {
+    console.log(`creating subscription ${subscriptionName} for ${topic.name}...`)
+    await topic.createSubscription(subscriptionName)
+  }
+  return topic
+}
+
+const addHealthCheck = app => {
+  app.get('/health', (req, res) => res.sendStatus(200))
+}
+const addLastListener = app => {
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => res.sendStatus(err ? 500 : 404))
+}
+
+const bootstrapHealthCheckServer = () => {
+  const app = express()
+  addHealthCheck(app)
+  addLastListener(app)
+  app.listen(port, () => {
+    console.log(`Server listening on ${port}`)
+  })
+  return app
+}
+
 module.exports = {
+  pubsub,
+  bootstrapSubscription,
+  addHealthCheck,
+  addLastListener,
+  bootstrapHealthCheckServer,
   bigquery,
   jobsTableRef,
   crawlingResultsTableRef,

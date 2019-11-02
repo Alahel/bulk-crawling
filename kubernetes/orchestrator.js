@@ -4,12 +4,10 @@ const cors = require('cors')
 const express = require('express')
 const uuid = require('uuidv4').default
 const { BadRequest } = require('http-errors')
-const { bigquery, jobsTableRef, getJob } = require('./common')
 const { handleReq, serialize, validateInt, serializeDate } = require('./helpers')
 const { port, maxFileSize, batchesTopic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
-const { PubSub } = require('@google-cloud/pubsub')
+const { pubsub, bigquery, jobsTableRef, getJob } = require('./common')
 
-const pubsub = new PubSub()
 const pubsubTopic = pubsub.topic(batchesTopic)
 
 const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) => {
@@ -83,7 +81,12 @@ app.get('/health', (req, res) => res.sendStatus(200))
 
 app.get(
   ['/job/:id', '/job'],
-  handleReq(async ({ params: { id }, query: { id: qId } }, res) => res.json(await getJob(id || qId))),
+  handleReq(async ({ params: { id }, query: { id: qId } }, res) => {
+    const finalId = id || qId
+    if (!finalId) throw new BadRequest(`id parameter is required`)
+    const job = await getJob(finalId)
+    return res.json(job)
+  }),
 )
 
 app.post(
@@ -91,7 +94,7 @@ app.post(
   handleReq(async (req, res) => {
     const params = sanitizeBulkImport(req)
     const job = await importBulk(params)
-    res.status(201).json(job)
+    return res.status(201).json(job)
   }),
 )
 

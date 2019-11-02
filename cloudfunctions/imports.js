@@ -72,5 +72,5 @@ const sanitizeBulkImport = ({ query: { batchSize, retries, timeout }, body }) =>
 exports.imports = handleReq(async (req, res) => {
   const params = sanitizeBulkImport(req)
   const job = await importBulk(params)
-  res.status(201).json(job)
+  return res.status(201).json(job)
 })
