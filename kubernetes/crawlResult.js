@@ -1,11 +1,5 @@
-const {
-  pubsub,
-  bootstrapSubscription,
-  bootstrapHealthCheckServer,
-  bigquery,
-  crawlingResultsTableRef,
-} = require('./common')
-const { batchesResultsTopic, maxMessagesPerSubscription, batchesResultsSubscriptionName } = require('./config/config')
+const { batchesResultsTopic, batchesResultsSubscriptionName } = require('./config/config')
+const { bootstrapSubscription, bootstrapHealthCheckServer, bigquery, crawlingResultsTableRef } = require('./common')
 const { deserialize } = require('./helpers')
 
 const crawlResult = async ({ event }) => {
@@ -19,26 +13,19 @@ const crawlResult = async ({ event }) => {
 }
 
 const messageHandler = async message => {
-  console.log(`Received message: ${message.id}`)
-  console.log(`\tData: ${message.data}`)
-  console.log(`\tAttributes: ${message.attributes}`)
-  await crawlResult({ event: message.data })
   message.ack()
+  console.log(`received message ${message.id}`)
+  await crawlResult({ event: message })
 }
 
 const bootstrap = async () => {
-  const pubsubTopic = await bootstrapSubscription({
+  const subscriptionName = `${batchesResultsSubscriptionName}`
+  bootstrapHealthCheckServer()
+  const { topic: pubsubTopic, subscription } = await bootstrapSubscription({
     topicName: batchesResultsTopic,
-    subscriptionName: batchesResultsSubscriptionName,
+    subscriptionName,
   })
-  const subscriberOptions = {
-    flowControl: {
-      maxMessages: maxMessagesPerSubscription,
-    },
-  }
-  const subscription = pubsub.subscription(batchesResultsSubscriptionName, subscriberOptions)
   subscription.on(`message`, messageHandler)
   console.log(`subscription ${batchesResultsSubscriptionName} for ${pubsubTopic.name} registered`)
-  bootstrapHealthCheckServer()
 }
 bootstrap()

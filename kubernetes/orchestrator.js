@@ -6,22 +6,26 @@ const uuid = require('uuidv4').default
 const { BadRequest } = require('http-errors')
 const { handleReq, serialize, validateInt, serializeDate } = require('./helpers')
 const { port, maxFileSize, batchesTopic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
-const { pubsub, bigquery, jobsTableRef, getJob } = require('./common')
+const { pubsub, initBQ, bigquery, jobsTableRef, getJob } = require('./common')
 
 const pubsubTopic = pubsub.topic(batchesTopic)
 
 const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) => {
   const jobId = uuid()
-  await jobsTableRef.insert({
-    jobId,
-    options: JSON.stringify({
-      batchSize,
-      retries,
-      timeout,
-    }),
-    total: urls.length,
-    queuedAt: bigquery.datetime(serializeDate(new Date())),
-  })
+  try {
+    await jobsTableRef.insert({
+      jobId,
+      options: JSON.stringify({
+        batchSize,
+        retries,
+        timeout,
+      }),
+      total: urls.length,
+      queuedAt: bigquery.datetime(serializeDate(new Date())),
+    })
+  } catch (e) {
+    console.log(JSON.stringify(e.response))
+  }
   const batchesUrls = batchSize ? chunk(urls, batchSize) : urls
   const batchesLength = batchesUrls.length
   const batchesProms = batchesUrls.map((batchUrls, batchIndex) =>
@@ -95,6 +99,14 @@ app.post(
     const params = sanitizeBulkImport(req)
     const job = await importBulk(params)
     return res.status(201).json(job)
+  }),
+)
+
+app.post(
+  '/init',
+  handleReq(async (req, res) => {
+    await initBQ()
+    return res.json({ success: true })
   }),
 )
 

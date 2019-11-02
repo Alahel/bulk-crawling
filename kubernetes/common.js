@@ -8,9 +8,10 @@ const {
 } = require('./constants')
 const { BigQuery } = require('@google-cloud/bigquery')
 const { NotFound } = require('http-errors')
-const { port, projectId, bqDatasetName } = require('./config/config')
+const { port, projectId, bqDatasetName, maxMessagesPerSubscription } = require('./config/config')
 const { PubSub } = require('@google-cloud/pubsub')
 const { serializeDate } = require('./helpers')
+const { Storage } = require('@google-cloud/storage')
 
 const serviceAccountOpts = {
   projectId,
@@ -18,6 +19,7 @@ const serviceAccountOpts = {
 }
 const pubsub = new PubSub(serviceAccountOpts)
 const bigquery = new BigQuery(serviceAccountOpts)
+const gcs = new Storage(serviceAccountOpts)
 const dataset = bigquery.dataset(bqDatasetName)
 const datasetRoot = `${projectId}.${bqDatasetName}`
 const jobsTable = 'jobs'
@@ -126,7 +128,15 @@ const bootstrapSubscription = async ({ topicName, subscriptionName } = {}) => {
     console.log(`creating subscription ${subscriptionName} for ${topic.name}...`)
     await topic.createSubscription(subscriptionName)
   }
-  return topic
+  const subscription = pubsub.subscription(subscriptionName, {
+    flowControl: {
+      maxMessages: maxMessagesPerSubscription,
+    },
+  })
+  return {
+    topic,
+    subscription,
+  }
 }
 
 const addHealthCheck = app => {
@@ -147,13 +157,73 @@ const bootstrapHealthCheckServer = () => {
   return app
 }
 
+const initBQ = async () => {
+  await bigquery.createDataset(bqDatasetName)
+  await Promise.all([
+    bigquery.dataset(bqDatasetName).createTable(jobsTable, {
+      schema: {
+        fields: [
+          {
+            name: 'jobId',
+            type: 'STRING',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'options',
+            type: 'STRING',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'total',
+            type: 'INT64',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'queuedAt',
+            type: 'DATETIME',
+            mode: 'REQUIRED',
+          },
+        ],
+      },
+    }),
+    bigquery.dataset(bqDatasetName).createTable(crawlingResultsTable, {
+      schema: {
+        fields: [
+          {
+            name: 'jobId',
+            type: 'STRING',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'status',
+            type: 'STRING',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'url',
+            type: 'STRING',
+            mode: 'REQUIRED',
+          },
+          {
+            name: 'at',
+            type: 'DATETIME',
+            mode: 'REQUIRED',
+          },
+        ],
+      },
+    }),
+  ])
+}
+
 module.exports = {
+  gcs,
   pubsub,
   bootstrapSubscription,
   addHealthCheck,
   addLastListener,
   bootstrapHealthCheckServer,
   bigquery,
+  initBQ,
   jobsTableRef,
   crawlingResultsTableRef,
   getJobDoc,
