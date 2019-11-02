@@ -1,10 +1,11 @@
-# CF_ARGS='--memory 2048mb' for better performance
+# CF_ARGS='--memory 2048mb' for better performance on cloudfunctions
 export CF_ARGS?=--memory 256mb
 
 define cfDeploy
 	cd cloudfunctions && gcloud functions deploy $(1)
 endef
 
+# --------- cloudfunctions
 .PHONY: cf-deploy-imports
 cf-deploy-imports:
 	$(call cfDeploy,imports --runtime nodejs10 --trigger-http --max-instances 1 $$CF_ARGS)
@@ -15,11 +16,11 @@ cf-deploy-job:
 
 .PHONY: cf-deploy-crawl
 cf-deploy-crawl:
-	$(call cfDeploy,crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000 $$CF_ARGS)
+	$(call cfDeploy,crawl --runtime nodejs10 --trigger-topic crawl_batches --max-instances 1000000 $$CF_ARGS)
 
 .PHONY: cf-deploy-crawlResult
 cf-deploy-crawlResult:
-	$(call cfDeploy,crawlResult --runtime nodejs10 --trigger-topic crawl_batches_statuses --max-instances 1000 $$CF_ARGS)
+	$(call cfDeploy,crawlResult --runtime nodejs10 --trigger-topic crawl_batches_statuses --max-instances 1000000 $$CF_ARGS)
 
 .PHONY: cf-deploy
 cf-deploy: cf-deploy-imports cf-deploy-job cf-deploy-crawl cf-deploy-crawlResult
@@ -28,6 +29,7 @@ cf-deploy: cf-deploy-imports cf-deploy-job cf-deploy-crawl cf-deploy-crawlResult
 cf-deploy-parallel:
 	$(MAKE) cf-deploy -j4
 
+# --------- nodejs prototype
 .PHONY: nodejs-bootstrap
 nodejs-bootstrap:
 	cd nodejs && npm i
@@ -39,3 +41,5 @@ nodejs-dev:
 .PHONY: nodejs
 nodejs:
 	cd nodejs && npm start
+
+# --------- kubernetes

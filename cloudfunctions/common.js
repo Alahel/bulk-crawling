@@ -63,7 +63,7 @@ const getJob = async jobId => {
   const [
     [
       {
-        [IMPORT_STATUS_COMPLETED]: processed = 0,
+        [IMPORT_STATUS_COMPLETED]: completed = 0,
         [IMPORT_STATUS_ERROR]: errors = 0,
         mini: startedAt = undefined,
         maxi: lastProcessedAt = undefined,
@@ -77,30 +77,39 @@ const getJob = async jobId => {
   let endedAt = null
   let duration = null
   let throughput = null
-  const totalProcessed = processed + errors
+  let processedThroughput = null
+  let processedDuration = null
+  const totalProcessed = completed + errors
   let status = totalProcessed > 0 ? IMPORT_STATUS_RUNNING : IMPORT_STATUS_PENDING
   const errorRate = totalProcessed > 0 ? `${Math.ceil((errors * 100) / total)}%` : null
-  if (totalProcessed >= total) status = IMPORT_STATUS_COMPLETED
+  // Consider a total number of 99.9% as completed (quotas + random of the cloud infra)
+  if (totalProcessed >= total * 0.999) status = IMPORT_STATUS_COMPLETED
   if (status === IMPORT_STATUS_RUNNING && parsedStartedAt) duration = new Date() - parsedStartedAt
   if (status === IMPORT_STATUS_COMPLETED && parsedStartedAt) {
     endedAt = parsedLastProcessedAt
     duration = endedAt - parsedStartedAt
   }
+  if (parsedLastProcessedAt && parsedStartedAt) {
+    processedDuration = parsedLastProcessedAt - parsedStartedAt
+  }
   if (duration > 0) throughput = totalProcessed / duration
+  if (processedDuration > 0) processedThroughput = totalProcessed / processedDuration
   return {
     jobId,
     options: parsedOptions,
     total,
-    processed,
+    completed,
     errors,
     status,
     errorRate,
     throughput: throughput ? `${Number(throughput * 1000).toFixed(2)}/s` : null,
+    processedThroughput: processedThroughput ? `${Number(processedThroughput * 1000).toFixed(2)}/s` : null,
     queuedAt: serializeDate(parsedQueuedAt),
     startedAt: serializeDate(parsedStartedAt),
     lastProcessedAt: serializeDate(parsedLastProcessedAt),
     endedAt: serializeDate(endedAt),
     duration: duration ? `${Math.ceil(duration / 1000)}s` : null,
+    processedDuration: processedDuration ? `${Math.ceil(processedDuration / 1000)}s` : null,
   }
 }
 
