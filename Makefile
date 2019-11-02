@@ -47,7 +47,11 @@ export KB_ROOT_CMD=cd kubernetes
 
 .PHONY: kb-up
 kb-up:
-	$$KB_ROOT_CMD && docker-compose up --build
+	$$KB_ROOT_CMD && docker-compose up --build -d
 
+.PHONY: kb-down
 kb-down:
 	$$KB_ROOT_CMD && docker-compose down --remove-orphans
+
+.PHONY: kb-down-up
+kb-down-up: kb-down kb-up

@@ -4,4 +4,4 @@ WORKDIR /app
 COPY . .
 RUN npm i
 EXPOSE $SERVER_PORT
-CMD [ "npm", "run", "start-orchestrator" ]
+CMD [ "npm", "start" ]
