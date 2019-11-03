@@ -63,34 +63,30 @@ const crawler = new Crawler({
   },
 })
 
-const crawl = ({ event }) =>
-  new Promise(resolve => {
-    const batchPayload = deserialize(event)
-    const {
-      batch: { urls, retries, timeout },
-    } = batchPayload
-    // Crawl in parallel for each url of the batches
-    crawler.on('drain', () => {
-      resolve()
-    })
-    urls.forEach(url =>
-      crawler.queue({
-        uri: url,
-        retries,
-        timeout,
-        retryTimeout: timeout,
-        batchResult: {
-          fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
-        },
-        batchPayload,
-      }),
-    )
-  })
+const crawl = ({ event }) => {
+  const batchPayload = deserialize(event)
+  const {
+    batch: { urls, retries, timeout },
+  } = batchPayload
+  // Crawl in parallel for each url of the batches
+  urls.forEach(url =>
+    crawler.queue({
+      uri: url,
+      retries,
+      timeout,
+      retryTimeout: timeout,
+      batchResult: {
+        fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
+      },
+      batchPayload,
+    }),
+  )
+}
 
 const messageHandler = async message => {
   message.ack()
   console.log(`received crawl message ${message.id}`)
-  await crawl({ event: message })
+  crawl({ event: message })
 }
 
 const bootstrap = async () => {
