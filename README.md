@@ -78,4 +78,8 @@ Get info about the cluster: `gcloud container clusters get-credentials bulk-craw
 
 Deploy dev local version: `make kb-dev-down-up`
 
+Proper Setup order: `make kb-build-parallel v=latest && make kb-deploy-parallel v=latest && make kb-expose && make kb-scale-parallel`
 
+Rolling upgrade: `make kb-redeploy-parallel v=latest`
+
+Rolling build & upgrade of a version: `make kb-build-parallel v=1.3 && make kb-redeploy-parallel v=1.3`

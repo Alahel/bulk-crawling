@@ -26,67 +26,68 @@ const uploadDocument = async ({ fileName, jobId, document }) => {
   })
 }
 
-const crawler = new Crawler({
-  ...CRAWL_OPTIONS,
-  callback: async (error, res, done) => {
+const crawl = ({ event }) =>
+  new Promise(resolve => {
+    const batchPayload = deserialize(event)
     const {
-      body,
-      options: {
-        uri: url,
-        batchPayload: { jobId },
-        batchResult: { fileName },
-      },
-    } = res
-    const messPayload = {
-      jobId,
-      url,
-    }
-    if (error) {
-      await pubsubResultsTopic.publish(
-        serialize({
-          ...messPayload,
-          status: IMPORT_STATUS_ERROR,
-          at: new Date(),
-        }),
-      )
-      return done(error)
-    }
-    await uploadDocument({ fileName, jobId, document: body })
-    await pubsubResultsTopic.publish(
-      serialize({
-        ...messPayload,
-        status: IMPORT_STATUS_COMPLETED,
-        at: new Date(),
-      }),
-    )
-    done()
-  },
-})
-
-const crawl = ({ event }) => {
-  const batchPayload = deserialize(event)
-  const {
-    batch: { urls, retries, timeout },
-  } = batchPayload
-  // Crawl in parallel for each url of the batches
-  urls.forEach(url =>
-    crawler.queue({
-      uri: url,
+      batch: { urls, retries, timeout },
+    } = batchPayload
+    const crawler = new Crawler({
+      ...CRAWL_OPTIONS,
       retries,
       timeout,
       retryTimeout: timeout,
-      batchResult: {
-        fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
+      maxConnections: 10,
+      callback: async (error, res, done) => {
+        const {
+          body,
+          options: {
+            uri: url,
+            batchPayload: { jobId },
+            batchResult: { fileName },
+          },
+        } = res
+        const messPayload = {
+          jobId,
+          url,
+        }
+        if (error) {
+          await pubsubResultsTopic.publish(
+            serialize({
+              ...messPayload,
+              status: IMPORT_STATUS_ERROR,
+              at: new Date(),
+            }),
+          )
+          return done(error)
+        }
+        await uploadDocument({ fileName, jobId, document: body })
+        await pubsubResultsTopic.publish(
+          serialize({
+            ...messPayload,
+            status: IMPORT_STATUS_COMPLETED,
+            at: new Date(),
+          }),
+        )
+        done()
       },
-      batchPayload,
-    }),
-  )
-}
+    })
+    crawler.on('drain', () => resolve())
+    // Crawl in parallel for each url of the batches
+    urls.forEach(url =>
+      crawler.queue({
+        uri: url,
+        batchResult: {
+          fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
+        },
+        batchPayload,
+      }),
+    )
+  })
 
 const messageHandler = async message => {
   message.ack()
-  console.log(`received crawl message ${message.id}`)
-  crawl({ event: message })
+  await crawl({ event: message })
 }
 
 const bootstrap = async () => {

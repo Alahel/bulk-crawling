@@ -13,7 +13,6 @@ const crawlResult = async ({ event }) => {
 }
 
 const messageHandler = async message => {
-  console.log(`received crawl result message ${message.id}`)
   message.ack()
   await crawlResult({ event: message })
 }

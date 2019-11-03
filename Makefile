@@ -45,6 +45,7 @@ nodejs:
 # --------- kubernetes
 export KB_ROOT_CMD=cd kubernetes
 
+# local nodejs for testing
 .PHONY: kb-dev-up
 kb-dev-up:
 	$$KB_ROOT_CMD && docker-compose up --build -d
@@ -56,20 +57,21 @@ kb-dev-down:
 .PHONY: kb-dev-down-up
 kb-dev-down-up: kb-dev-down kb-dev-up
 
+# build
 .PHONY: kb-build-orchestrator
 kb-build-orchestrator:
-	$$KB_ROOT_CMD && docker build -f ./docker/orchestrator/Dockerfile -t gcr.io/bulk-crawling-kb/kb-orchestrator:latest . \
-	&& docker push gcr.io/bulk-crawling-kb/kb-orchestrator:latest
+	$$KB_ROOT_CMD && docker build -f ./docker/orchestrator/Dockerfile -t gcr.io/bulk-crawling-kb/kb-orchestrator:$(v) . \
+	&& docker push gcr.io/bulk-crawling-kb/kb-orchestrator:$(v)
 
 .PHONY: kb-build-crawl
 kb-build-crawl:
-	$$KB_ROOT_CMD && docker build -f ./docker/crawl/Dockerfile -t gcr.io/bulk-crawling-kb/kb-crawl:latest . \
-	&& docker push gcr.io/bulk-crawling-kb/kb-crawl:latest
+	$$KB_ROOT_CMD && docker build -f ./docker/crawl/Dockerfile -t gcr.io/bulk-crawling-kb/kb-crawl:$(v) . \
+	&& docker push gcr.io/bulk-crawling-kb/kb-crawl:$(v)
 
 .PHONY: kb-build-crawlresult
 kb-build-crawlresult:
-	$$KB_ROOT_CMD && docker build -f ./docker/crawlResult/Dockerfile -t gcr.io/bulk-crawling-kb/kb-crawlresult:latest . \
-	&& docker push gcr.io/bulk-crawling-kb/kb-crawlresult:latest
+	$$KB_ROOT_CMD && docker build -f ./docker/crawlResult/Dockerfile -t gcr.io/bulk-crawling-kb/kb-crawlresult:$(v) . \
+	&& docker push gcr.io/bulk-crawling-kb/kb-crawlresult:$(v)
 
 .PHONY: kb-build
 kb-build: kb-build-orchestrator kb-build-crawl kb-build-crawlresult
@@ -78,20 +80,21 @@ kb-build: kb-build-orchestrator kb-build-crawl kb-build-crawlresult
 kb-build-parallel:
 	$(MAKE) kb-build -j3
 
+# deploy
 .PHONY: kb-deploy-orchestrator
 kb-deploy-orchestrator:
-	kubectl create deployment orchestrator --image=gcr.io/bulk-crawling-kb/kb-orchestrator:latest
-# 	kubectl set image deployment/orchestrator kb-orchestrator=gcr.io/bulk-crawling-kb/kb-orchestrator:latest
+	kubectl create deployment orchestrator --image=gcr.io/bulk-crawling-kb/kb-orchestrator:$(v) \
+	; kubectl set image deployment/orchestrator kb-orchestrator=gcr.io/bulk-crawling-kb/kb-orchestrator:$(v)
 
 .PHONY: kb-deploy-crawl
 kb-deploy-crawl:
-	kubectl create deployment crawl --image=gcr.io/bulk-crawling-kb/kb-crawl:latest
-# 	kubectl set image deployment/crawl kb-crawl=gcr.io/bulk-crawling-kb/kb-crawl:latest
+	kubectl create deployment crawl --image=gcr.io/bulk-crawling-kb/kb-crawl:$(v) \
+	; kubectl set image deployment/crawl kb-crawl=gcr.io/bulk-crawling-kb/kb-crawl:$(v)
 
 .PHONY: kb-deploy-crawlresult
 kb-deploy-crawlresult:
-	kubectl create deployment crawlresult --image=gcr.io/bulk-crawling-kb/kb-crawlresult:latest
-# 	kubectl set image deployment/crawlresult kb-crawlresult=gcr.io/bulk-crawling-kb/kb-crawlresult:latest
+	kubectl create deployment crawlresult --image=gcr.io/bulk-crawling-kb/kb-crawlresult:$(v) \
+	; kubectl set image deployment/crawlresult kb-crawlresult=gcr.io/bulk-crawling-kb/kb-crawlresult:$(v)
 
 .PHONY: kb-deploy
 kb-deploy: kb-deploy-orchestrator kb-deploy-crawl kb-deploy-crawlresult
@@ -100,17 +103,45 @@ kb-deploy: kb-deploy-orchestrator kb-deploy-crawl kb-deploy-crawlresult
 kb-deploy-parallel:
 	$(MAKE) kb-deploy -j3
 
+# rolling upgrade
+.PHONY: kb-redeploy-orchestrator
+kb-redeploy-orchestrator:
+	kubectl set image deployment/orchestrator kb-orchestrator=gcr.io/bulk-crawling-kb/kb-orchestrator:$(v)
+
+.PHONY: kb-redeploy-crawl
+kb-redeploy-crawl:
+	kubectl set image deployment/crawl kb-crawl=gcr.io/bulk-crawling-kb/kb-crawl:$(v)
+
+.PHONY: kb-redeploy-crawlresult
+kb-redeploy-crawlresult:
+	kubectl set image deployment/crawlresult kb-crawlresult=gcr.io/bulk-crawling-kb/kb-crawlresult:$(v)
+
+.PHONY: kb-redeploy
+kb-redeploy: kb-redeploy-orchestrator kb-redeploy-crawl kb-redeploy-crawlresult
+
+.PHONY: kb-redeploy-parallel
+kb-redeploy-parallel:
+	$(MAKE) kb-redeploy -j3
+
+# expode cluster
 .PHONY: kb-expose
 kb-expose:
-	kubectl expose deployment orchestrator --type=LoadBalancer --port 80 --target-port 8080 \
-	&& kubectl expose deployment crawl --type=LoadBalancer --port 80 --target-port 8080 \
-	&& kubectl expose deployment crawlresult --type=LoadBalancer --port 80 --target-port 8080
+	kubectl expose deployment orchestrator --type=LoadBalancer --port 80 --target-port 8080
 
+# scaling
 .PHONY: kb-scale-crawl
 kb-scale-crawl:
-	kubectl autoscale deployment crawl --min=10 --max=100
+	kubectl delete hpa crawl \
+	; kubectl autoscale deployment crawl --cpu-percent=50 --min=1 --max=100
 
 .PHONY: kb-scale-crawlResult
 kb-scale-crawlResult:
-	kubectl autoscale deployment crawlresult --min=10 --max=100
+	kubectl delete hpa crawlresult \
+	; kubectl autoscale deployment crawlresult --cpu-percent=50 --min=1 --max=100
 
+.PHONY: kb-scale
+kb-scale: kb-scale-crawl kb-scale-crawlResult
+
+.PHONY: kb-scale-parallel
+kb-scale-parallel:
+	$(MAKE) kb-scale -j2
