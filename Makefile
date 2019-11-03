@@ -108,9 +108,9 @@ kb-expose:
 
 .PHONY: kb-scale-crawl
 kb-scale-crawl:
-	kubectl autoscale deployment crawl --min=1 --max=100
+	kubectl autoscale deployment crawl --min=10 --max=100
 
 .PHONY: kb-scale-crawlResult
 kb-scale-crawlResult:
-	kubectl autoscale deployment crawlresult --min=1 --max=100
+	kubectl autoscale deployment crawlresult --min=10 --max=100
 
