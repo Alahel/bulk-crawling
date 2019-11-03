@@ -76,6 +76,6 @@ Bootstrap bucket: `gsutil mb gs://crawl-jobs-results-kb/`
 
 Get info about the cluster: `gcloud container clusters get-credentials bulk-crawling-kb`
 
-Deploy dev local version: `make kb-down-up`
+Deploy dev local version: `make kb-dev-down-up`
 
 

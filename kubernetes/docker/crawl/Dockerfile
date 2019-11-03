@@ -2,6 +2,6 @@ FROM node:12.13.0-alpine
 ENV SERVER_PORT=8080
 WORKDIR /app
 COPY . .
-RUN npm i
+RUN npm i --production
 EXPOSE $SERVER_PORT
-CMD [ "npm", "start" ]
+CMD [ "npm", "run", "start-crawl" ]

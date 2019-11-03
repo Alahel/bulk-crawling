@@ -3,21 +3,21 @@ services:
   orchestrator:
     build:
       context: ./
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/orchestrator/Dockerfile
     ports:
       - '8080:8080'
     command: npm run start-orchestrator
   crawl:
     build:
       context: ./
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/crawl/Dockerfile
     ports:
       - '8081:8080'
     command: npm run start-crawl
-  crawl-result:
+  crawlresult:
     build:
       context: ./
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/crawlResult/Dockerfile
     ports:
       - '8082:8080'
     command: npm run start-crawlResult
