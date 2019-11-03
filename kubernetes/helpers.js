@@ -19,4 +19,13 @@ const validateInt = ({ value, min = 0, max, message }) => {
   if (!(!Number.isNaN(value) && value >= min && value <= max)) throw new BadRequest(message)
 }
 
-module.exports = { handleReq, deserialize, serialize, serializeDate, validateInt }
+const watchKO = async prom => {
+  try {
+    await prom()
+  } catch (e) {
+    console.error(e)
+    process.exit(1)
+  }
+}
+
+module.exports = { handleReq, deserialize, serialize, serializeDate, validateInt, watchKO }

@@ -4,15 +4,11 @@ const { batchesResultsTopic, bucketName } = require('./config/config')
 const { batchesTopic, batchesSubscriptionName } = require('./config/config')
 const { gcs, pubsub, bootstrapSubscription, bootstrapHealthCheckServer } = require('./common')
 const { IMPORT_STATUS_COMPLETED, IMPORT_STATUS_ERROR } = require('./constants')
-const { serialize, deserialize } = require('./helpers')
+const { serialize, deserialize, watchKO } = require('./helpers')
 
 const MAX_FILE_NAME_LENGTH = 255
 const CRAWL_OPTIONS = {
   jQuery: false,
-  retries: 0,
-  retryTimeout: 1000,
-  maxConnections: 300,
-  timeout: 3000,
   encoding: null,
 }
 const pubsubResultsTopic = pubsub.topic(batchesResultsTopic)
@@ -30,6 +26,43 @@ const uploadDocument = async ({ fileName, jobId, document }) => {
   })
 }
 
+const crawler = new Crawler({
+  ...CRAWL_OPTIONS,
+  callback: async (error, res, done) => {
+    const {
+      body,
+      options: {
+        uri: url,
+        batchPayload: { jobId },
+        batchResult: { fileName },
+      },
+    } = res
+    const messPayload = {
+      jobId,
+      url,
+    }
+    if (error) {
+      await pubsubResultsTopic.publish(
+        serialize({
+          ...messPayload,
+          status: IMPORT_STATUS_ERROR,
+          at: new Date(),
+        }),
+      )
+      return done(error)
+    }
+    await uploadDocument({ fileName, jobId, document: body })
+    await pubsubResultsTopic.publish(
+      serialize({
+        ...messPayload,
+        status: IMPORT_STATUS_COMPLETED,
+        at: new Date(),
+      }),
+    )
+    done()
+  },
+})
+
 const crawl = ({ event }) =>
   new Promise(resolve => {
     const batchPayload = deserialize(event)
@@ -37,51 +70,15 @@ const crawl = ({ event }) =>
       batch: { urls, retries, timeout },
     } = batchPayload
     // Crawl in parallel for each url of the batches
-    const crawler = new Crawler({
-      ...CRAWL_OPTIONS,
-      retries,
-      timeout,
-      callback: async (error, res, done) => {
-        const {
-          body,
-          options: {
-            uri: url,
-            batchPayload: { jobId },
-            batchResult: { fileName },
-          },
-        } = res
-        const messPayload = {
-          jobId,
-          url,
-        }
-        if (error) {
-          await pubsubResultsTopic.publish(
-            serialize({
-              ...messPayload,
-              status: IMPORT_STATUS_ERROR,
-              at: new Date(),
-            }),
-          )
-          return done(error)
-        }
-        await uploadDocument({ fileName, jobId, document: body })
-        await pubsubResultsTopic.publish(
-          serialize({
-            ...messPayload,
-            status: IMPORT_STATUS_COMPLETED,
-            at: new Date(),
-          }),
-        )
-        done()
-      },
-    })
-    crawler.on('drain', async () => {
+    crawler.on('drain', () => {
       resolve()
     })
     urls.forEach(url =>
       crawler.queue({
-        ...CRAWL_OPTIONS,
         uri: url,
+        retries,
+        timeout,
+        retryTimeout: timeout,
         batchResult: {
           fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),
         },
@@ -91,8 +88,8 @@ const crawl = ({ event }) =>
   })
 
 const messageHandler = async message => {
-  console.log(`received message ${message.id}`)
   message.ack()
+  console.log(`received crawl message ${message.id}`)
   await crawl({ event: message })
 }
 
@@ -106,4 +103,4 @@ const bootstrap = async () => {
   subscription.on('message', messageHandler)
   console.log(`subscription ${subscriptionName} for ${pubsubTopic.name} registered`)
 }
-bootstrap()
+watchKO(bootstrap)

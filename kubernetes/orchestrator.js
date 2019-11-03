@@ -6,11 +6,11 @@ const uuid = require('uuidv4').default
 const { BadRequest } = require('http-errors')
 const { handleReq, serialize, validateInt, serializeDate } = require('./helpers')
 const { port, maxFileSize, batchesTopic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
-const { pubsub, initBQ, bigquery, jobsTableRef, getJob } = require('./common')
+const { pubsub, bootstrapDeps, jobsTableRef, getJob, addHealthCheck } = require('./common')
 
 const pubsubTopic = pubsub.topic(batchesTopic)
 
-const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) => {
+const importBulk = async ({ urls, batchSize = 1, retries = 1, timeout = 3000 }) => {
   const jobId = uuid()
   try {
     await jobsTableRef.insert({
@@ -21,10 +21,10 @@ const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) 
         timeout,
       }),
       total: urls.length,
-      queuedAt: bigquery.datetime(serializeDate(new Date())),
+      queuedAt: serializeDate(new Date()),
     })
   } catch (e) {
-    console.log(JSON.stringify(e.response))
+    console.error(JSON.stringify(e.response))
   }
   const batchesUrls = batchSize ? chunk(urls, batchSize) : urls
   const batchesLength = batchesUrls.length
@@ -81,7 +81,7 @@ app.use(
 )
 app.use(cors())
 
-app.get('/health', (req, res) => res.sendStatus(200))
+addHealthCheck(app)
 
 app.get(
   ['/job/:id', '/job'],
@@ -105,7 +105,7 @@ app.post(
 app.post(
   '/init',
   handleReq(async (req, res) => {
-    await initBQ()
+    await bootstrapDeps()
     return res.json({ success: true })
   }),
 )

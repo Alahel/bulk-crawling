@@ -6,9 +6,16 @@ const {
   IMPORT_STATUS_ERROR,
   IMPORT_STATUS_PENDING,
 } = require('./constants')
+const {
+  port,
+  projectId,
+  bqDatasetName,
+  maxMessagesPerSubscription,
+  batchesResultsTopic,
+  batchesTopic,
+} = require('./config/config')
 const { BigQuery } = require('@google-cloud/bigquery')
 const { NotFound } = require('http-errors')
-const { port, projectId, bqDatasetName, maxMessagesPerSubscription } = require('./config/config')
 const { PubSub } = require('@google-cloud/pubsub')
 const { serializeDate } = require('./helpers')
 const { Storage } = require('@google-cloud/storage')
@@ -27,7 +34,7 @@ const crawlingResultsTable = 'crawlingResults'
 const jobsTableRef = dataset.table(jobsTable)
 const crawlingResultsTableRef = dataset.table(crawlingResultsTable)
 
-const bqDatetimeToDate = date => (date ? new Date(date.value) : undefined)
+const bqDatetimeToDate = date => (date ? new Date(date) : undefined)
 
 const getJobDoc = async jobId => {
   const [[job]] = await bigquery.query({
@@ -40,6 +47,10 @@ const getJobDoc = async jobId => {
     job,
   }
 }
+
+const getDurationOutput = duration => (duration ? `${Math.ceil(duration / 1000)}s` : null)
+
+const getThroughputOutput = throughput => (throughput ? `${Number(throughput * 1000).toFixed(2)}/s` : null)
 
 const getJob = async jobId => {
   const { job } = await getJobDoc(jobId)
@@ -81,19 +92,20 @@ const getJob = async jobId => {
   const parsedStartedAt = bqDatetimeToDate(startedAt)
   const parsedLastProcessedAt = bqDatetimeToDate(lastProcessedAt)
   let endedAt = null
-  let duration = null
+  let duration = undefined
   let throughput = null
   let processedThroughput = null
-  let processedDuration = null
+  let processedDuration = undefined
   const totalProcessed = completed + errors
   let status = totalProcessed > 0 ? IMPORT_STATUS_RUNNING : IMPORT_STATUS_PENDING
   const errorRate = totalProcessed > 0 ? `${Math.ceil((errors * 100) / total)}%` : null
   // Consider a total number of 99.9% as completed (quotas + random of the cloud infra)
   if (totalProcessed >= total * 0.999) status = IMPORT_STATUS_COMPLETED
-  if (status === IMPORT_STATUS_RUNNING && parsedStartedAt) duration = new Date() - parsedStartedAt
-  if (status === IMPORT_STATUS_COMPLETED && parsedStartedAt) {
+  if (status === IMPORT_STATUS_RUNNING && parsedStartedAt)
+    duration = new Date(new Date().toISOString()) - parsedQueuedAt
+  if (status === IMPORT_STATUS_COMPLETED && parsedStartedAt && parsedLastProcessedAt) {
     endedAt = parsedLastProcessedAt
-    duration = endedAt - parsedStartedAt
+    duration = parsedLastProcessedAt - parsedStartedAt
   }
   if (parsedLastProcessedAt && parsedStartedAt) {
     processedDuration = parsedLastProcessedAt - parsedStartedAt
@@ -108,14 +120,14 @@ const getJob = async jobId => {
     errors,
     status,
     errorRate,
-    throughput: throughput ? `${Number(throughput * 1000).toFixed(2)}/s` : null,
-    processedThroughput: processedThroughput ? `${Number(processedThroughput * 1000).toFixed(2)}/s` : null,
+    throughput: getThroughputOutput(throughput),
+    processedThroughput: getThroughputOutput(processedThroughput),
     queuedAt: serializeDate(parsedQueuedAt),
     startedAt: serializeDate(parsedStartedAt),
     lastProcessedAt: serializeDate(parsedLastProcessedAt),
     endedAt: serializeDate(endedAt),
-    duration: duration ? `${Math.ceil(duration / 1000)}s` : null,
-    processedDuration: processedDuration ? `${Math.ceil(processedDuration / 1000)}s` : null,
+    duration: getDurationOutput(duration),
+    processedDuration: getDurationOutput(processedDuration),
   }
 }
 
@@ -157,7 +169,9 @@ const bootstrapHealthCheckServer = () => {
   return app
 }
 
-const initBQ = async () => {
+const bootstrapDeps = async () => {
+  await pubsub.createTopic(batchesResultsTopic)
+  await pubsub.createTopic(batchesTopic)
   await bigquery.createDataset(bqDatasetName)
   await Promise.all([
     bigquery.dataset(bqDatasetName).createTable(jobsTable, {
@@ -180,7 +194,7 @@ const initBQ = async () => {
           },
           {
             name: 'queuedAt',
-            type: 'DATETIME',
+            type: 'STRING',
             mode: 'REQUIRED',
           },
         ],
@@ -206,7 +220,7 @@ const initBQ = async () => {
           },
           {
             name: 'at',
-            type: 'DATETIME',
+            type: 'STRING',
             mode: 'REQUIRED',
           },
         ],
@@ -223,7 +237,7 @@ module.exports = {
   addLastListener,
   bootstrapHealthCheckServer,
   bigquery,
-  initBQ,
+  bootstrapDeps,
   jobsTableRef,
   crawlingResultsTableRef,
   getJobDoc,
