@@ -132,12 +132,12 @@ kb-expose:
 .PHONY: kb-scale-crawl
 kb-scale-crawl:
 	kubectl delete hpa crawl \
-	; kubectl autoscale deployment crawl --cpu-percent=50 --min=1 --max=100
+	; kubectl apply -f ./kubernetes/kb/hpa-crawl.yml
 
 .PHONY: kb-scale-crawlResult
 kb-scale-crawlResult:
 	kubectl delete hpa crawlresult \
-	; kubectl autoscale deployment crawlresult --cpu-percent=50 --min=1 --max=100
+	; kubectl apply -f ./kubernetes/kb/hpa-crawlResult.yml
 
 .PHONY: kb-scale
 kb-scale: kb-scale-crawl kb-scale-crawlResult

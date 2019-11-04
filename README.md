@@ -66,7 +66,11 @@ Deploy for speed: `CF_ARGS='--memory 2048MB' cf-deploy-crawlResults`
 
 ## kubernetes
 
-Create the cluster: `gcloud container clusters create bulk-crawling-kb`
+Create the cluster: `gcloud container clusters create bulk-crawling-kb --num-nodes 3 --enable-autoscaling --min-nodes 3 --max-nodes 100`
+
+Install scaling metric for pubsub measurements: `kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-admin --user "$(gcloud config get-value account)`
+
+Deploy custom metric adapter for proper scaling: `kubectl create -f https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-stackdriver/master/custom-metrics-stackdriver-adapter/deploy/production/adapter.yaml`
 
 Bootstrap PubSub: `gcloud pubsub topics create crawl_batches`
 
@@ -74,7 +78,7 @@ Bootstrap PubSub results: `gcloud pubsub topics create crawl_batches_statuses`
 
 Bootstrap bucket: `gsutil mb gs://crawl-jobs-results-kb/`
 
-Get info about the cluster: `gcloud container clusters get-credentials bulk-crawling-kb`
+Get credentials of the cluster: `gcloud container clusters get-credentials bulk-crawling-kb`
 
 Deploy dev local version: `make kb-dev-down-up`
 

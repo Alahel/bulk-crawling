@@ -86,8 +86,8 @@ const crawl = ({ event }) =>
   })
 
 const messageHandler = async message => {
-  message.ack()
   await crawl({ event: message })
+  message.ack()
 }
 
 const bootstrap = async () => {
