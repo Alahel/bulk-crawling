@@ -2,22 +2,15 @@ const Crawler = require('crawler')
 const URLSlugify = require('url-slugify')
 const { batchesResultsTopic, bucketName } = require('./config/config')
 const { IMPORT_STATUS_COMPLETED, IMPORT_STATUS_ERROR } = require('./constants')
-const { PubSub } = require('@google-cloud/pubsub')
-const { serialize, deserialize } = require('./helpers')
-const { Storage } = require('@google-cloud/storage')
+const { pubsub, gcs } = require('./common')
+const { serialize, deserialize, serializeDate } = require('./helpers')
 
 const MAX_FILE_NAME_LENGTH = 255
 const CRAWL_OPTIONS = {
   jQuery: false,
-  retries: 0,
-  retryTimeout: 1000,
   maxConnections: 300,
-  timeout: 3000,
   encoding: null,
 }
-
-const pubsub = new PubSub()
-const gcs = new Storage()
 const pubsubResultsTopic = pubsub.topic(batchesResultsTopic)
 const urlSlugify = new URLSlugify()
 
@@ -39,11 +32,11 @@ const crawl = ({ event }) =>
     const {
       batch: { urls, retries, timeout },
     } = batchPayload
-    // Crawl in parallel for each url of the batches
     const crawler = new Crawler({
       ...CRAWL_OPTIONS,
       retries,
       timeout,
+      retryTimeout: timeout,
       callback: async (error, res, done) => {
         const {
           body,
@@ -62,7 +55,7 @@ const crawl = ({ event }) =>
             serialize({
               ...messPayload,
               status: IMPORT_STATUS_ERROR,
-              at: new Date(),
+              at: serializeDate(new Date()),
             }),
           )
           return done(error)
@@ -72,18 +65,16 @@ const crawl = ({ event }) =>
           serialize({
             ...messPayload,
             status: IMPORT_STATUS_COMPLETED,
-            at: new Date(),
+            at: serializeDate(new Date()),
           }),
         )
         done()
       },
     })
-    crawler.on('drain', async () => {
-      resolve()
-    })
+    crawler.on('drain', () => resolve())
+    // Crawl in parallel for each url of the batches
     urls.forEach(url =>
       crawler.queue({
-        ...CRAWL_OPTIONS,
         uri: url,
         batchResult: {
           fileName: urlSlugify.slugify(url).slice(0, MAX_FILE_NAME_LENGTH),

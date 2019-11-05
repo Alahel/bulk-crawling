@@ -1,4 +1,4 @@
-const { bigquery, crawlingResultsTableRef } = require('./common')
+const { crawlingResultsTableRef } = require('./common')
 const { deserialize } = require('./helpers')
 
 const crawlResult = async ({ event }) => {
@@ -7,7 +7,7 @@ const crawlResult = async ({ event }) => {
     jobId,
     status,
     url,
-    at: bigquery.datetime(at),
+    at,
   })
 }
 

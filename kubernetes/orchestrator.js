@@ -106,7 +106,7 @@ app.post(
   '/init',
   handleReq(async (req, res) => {
     await bootstrapDeps()
-    return res.json({ success: true })
+    return res.sendStatus(200)
   }),
 )
 

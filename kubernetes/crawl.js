@@ -4,7 +4,7 @@ const { batchesResultsTopic, bucketName } = require('./config/config')
 const { batchesTopic, batchesSubscriptionName } = require('./config/config')
 const { gcs, pubsub, bootstrapSubscription, bootstrapHealthCheckServer } = require('./common')
 const { IMPORT_STATUS_COMPLETED, IMPORT_STATUS_ERROR } = require('./constants')
-const { serialize, deserialize, watchKO } = require('./helpers')
+const { serialize, deserialize, watchKO, serializeDate } = require('./helpers')
 
 const MAX_FILE_NAME_LENGTH = 255
 const CRAWL_OPTIONS = {
@@ -56,7 +56,7 @@ const crawl = ({ event }) =>
             serialize({
               ...messPayload,
               status: IMPORT_STATUS_ERROR,
-              at: new Date(),
+              at: serializeDate(new Date()),
             }),
           )
           return done(error)
@@ -66,7 +66,7 @@ const crawl = ({ event }) =>
           serialize({
             ...messPayload,
             status: IMPORT_STATUS_COMPLETED,
-            at: new Date(),
+            at: serializeDate(new Date()),
           }),
         )
         done()

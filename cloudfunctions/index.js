@@ -1,3 +1,4 @@
+const { bootstrap } = require('./bootstrap')
 const { crawl } = require('./crawl')
 const { crawlResult } = require('./crawlResult')
 const { imports } = require('./imports')
@@ -8,4 +9,5 @@ module.exports = {
   crawl,
   crawlResult,
   job,
+  bootstrap,
 }

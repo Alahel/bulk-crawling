@@ -2,9 +2,9 @@ module.exports = {
   maxBulkImport: 10000,
   maxRetries: 5,
   maxTimeout: 30000,
-  projectId: 'bulk-crawling',
+  projectId: 'bulk-crawling-cf',
   bqDatasetName: 'bulkCrawlingResults',
   batchesTopic: 'crawl_batches',
   batchesResultsTopic: 'crawl_batches_statuses',
-  bucketName: 'crawl-jobs-results',
+  bucketName: 'crawl-jobs-results-cf',
 }

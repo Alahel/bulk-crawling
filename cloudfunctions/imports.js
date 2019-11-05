@@ -2,12 +2,9 @@ const chunk = require('lodash/chunk')
 const uuid = require('uuidv4').default
 const { BadRequest } = require('http-errors')
 const { batchesTopic, maxBulkImport, maxRetries, maxTimeout } = require('./config/config')
-const { bigquery, jobsTableRef, getJob } = require('./common')
-const { handleReq, validateInt, serializeDate } = require('./helpers')
-const { PubSub } = require('@google-cloud/pubsub')
-const { serialize } = require('./helpers')
+const { pubsub, jobsTableRef, getJob } = require('./common')
+const { serialize, handleReq, validateInt, serializeDate } = require('./helpers')
 
-const pubsub = new PubSub()
 const pubsubTopic = pubsub.topic(batchesTopic)
 
 const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) => {
@@ -20,7 +17,7 @@ const importBulk = async ({ urls, batchSize = 1, retries = 0, timeout = 1000 }) 
       timeout,
     }),
     total: urls.length,
-    queuedAt: bigquery.datetime(serializeDate(new Date())),
+    queuedAt: serializeDate(new Date()),
   })
   const batchesUrls = batchSize ? chunk(urls, batchSize) : urls
   const batchesLength = batchesUrls.length
