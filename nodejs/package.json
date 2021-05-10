@@ -35,7 +35,7 @@
     "crawler": "^1.2.1",
     "express": "^4.17.1",
     "http-errors": "^1.7.3",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "url-slugify": "^1.0.6",
     "uuidv4": "^5.0.1"
   },
